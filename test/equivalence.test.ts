@@ -77,7 +77,7 @@ const WORDS = [
 
 const CYRILLIC = ["получить", "профиль", "пользователь", "текущий", "сервис", "обновить", "имя", "данные"]
 
-type Stats = { pairs: number; matches: number }
+type Stats = { pairs: number; matches: number; typoOnly: number; typoReplaced: number }
 
 function samePositions(left: number[], right: number[]): boolean {
   if (left.length !== right.length) return false
@@ -90,15 +90,55 @@ function formatResult(result: ScoreResult | null): string {
   return `{ score: ${result.score}, positions: [${result.positions.join(", ")}] }`
 }
 
+/** A typo result uses -1 for an extra query character, or a non-increasing transposition pair. */
+function isTypoAlignment(positions: readonly number[]): boolean {
+  for (let i = 0; i < positions.length; i++) {
+    const position = positions[i]!
+    if (position < 0) return true
+    if (i > 0 && position <= positions[i - 1]!) return true
+  }
+  return false
+}
+
 function check(query: string, candidate: string, stats: Stats): void {
   const reference = referenceScore(query, candidate)
+  const classic = score(query, candidate, { typoTolerance: false })
+  const classicSame =
+    reference === null
+      ? classic === null
+      : classic !== null &&
+        reference.score === classic.score &&
+        samePositions(reference.positions, classic.positions)
+  if (!classicSame) {
+    throw new Error(
+      [
+        "typoTolerance false mismatch",
+        `query: ${JSON.stringify(query)}`,
+        `candidate: ${JSON.stringify(candidate)}`,
+        `reference: ${formatResult(reference)}`,
+        `classic: ${formatResult(classic)}`,
+      ].join("\n"),
+    )
+  }
   const optimized = score(query, candidate)
   stats.pairs += 1
   if (reference !== null) stats.matches += 1
-  const same =
-    reference === null
-      ? optimized === null
-      : optimized !== null && reference.score === optimized.score && samePositions(reference.positions, optimized.positions)
+  if (optimized !== null && isTypoAlignment(optimized.positions)) {
+    if (reference === null) stats.typoOnly += 1
+    else if (optimized.score > reference.score) stats.typoReplaced += 1
+  }
+  const sameNormal =
+    reference !== null &&
+    optimized !== null &&
+    reference.score === optimized.score &&
+    samePositions(reference.positions, optimized.positions)
+  // A typo may add a match the reference rejects, or replace a normal match, but only
+  // with a strictly higher score. An equal score must keep the reference positions.
+  const betterTypo =
+    optimized !== null &&
+    isTypoAlignment(optimized.positions) &&
+    (reference === null || optimized.score > reference.score)
+  const same = (reference === null && optimized === null) || sameNormal || betterTypo
   if (!same) {
     throw new Error(
       [
@@ -113,13 +153,15 @@ function check(query: string, candidate: string, stats: Stats): void {
 }
 
 function checkGroup(pairs: Array<[string, string]>): Stats {
-  const stats: Stats = { pairs: 0, matches: 0 }
+  const stats: Stats = { pairs: 0, matches: 0, typoOnly: 0, typoReplaced: 0 }
   for (const [query, candidate] of pairs) check(query, candidate, stats)
   return stats
 }
 
 function report(label: string, stats: Stats): void {
-  console.log(`${label}: ${stats.pairs} pairs, ${stats.matches} matches, 0 mismatches`)
+  console.log(
+    `${label}: ${stats.pairs} pairs, ${stats.matches} matches, 0 mismatches, typo-only ${stats.typoOnly}, typo-replaced ${stats.typoReplaced}`,
+  )
 }
 
 function capitalize(word: string): string {
@@ -231,7 +273,7 @@ function allStrings(alphabet: readonly string[], maxLength: number): string[] {
   return strings
 }
 
-describe("optimized score matches the reference scorer", () => {
+describe("normal alignments match the reference scorer", () => {
   it("matches on the corpus, alignment cases, and edges", () => {
     const pairs: Array<[string, string]> = []
     for (const scenario of scenarios) {
@@ -247,7 +289,7 @@ describe("optimized score matches the reference scorer", () => {
   })
 
   it("matches on 100000 deterministic pairs", () => {
-    const stats: Stats = { pairs: 0, matches: 0 }
+    const stats: Stats = { pairs: 0, matches: 0, typoOnly: 0, typoReplaced: 0 }
     for (let index = 0; index < 100_000; index++) {
       const [query, candidate] = generatedPair(index)
       check(query, candidate, stats)
@@ -262,7 +304,7 @@ describe("optimized score matches the reference scorer", () => {
     const alphabet = ["a", "b", "_"]
     const candidates = allStrings(alphabet, 6)
     const queries = allStrings(alphabet, 4)
-    const stats: Stats = { pairs: 0, matches: 0 }
+    const stats: Stats = { pairs: 0, matches: 0, typoOnly: 0, typoReplaced: 0 }
     for (const query of queries) {
       for (const candidate of candidates) check(query, candidate, stats)
     }
@@ -276,7 +318,7 @@ describe("optimized score matches the reference scorer", () => {
     const alphabet = ["a", "A", "_", "1"]
     const candidates = allStrings(alphabet, 4)
     const queries = allStrings(alphabet, 3)
-    const stats: Stats = { pairs: 0, matches: 0 }
+    const stats: Stats = { pairs: 0, matches: 0, typoOnly: 0, typoReplaced: 0 }
     for (const query of queries) {
       for (const candidate of candidates) check(query, candidate, stats)
     }

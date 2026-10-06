@@ -46,4 +46,19 @@ describe("search", () => {
   it("returns nothing for an empty query", () => {
     expect(search("", ["user", "username", ""])).toEqual([])
   })
+
+  it("passes typoTolerance through to score", () => {
+    const candidates = ["user", "useRouter"]
+    const tolerant = search("userr", candidates)
+    const plain = search("userr", candidates, { typoTolerance: false })
+    expect(tolerant.map((row) => row.value)).toContain("user")
+    expect(plain.map((row) => row.value)).not.toContain("user")
+    expect(plain.map((row) => row.value)).toContain("useRouter")
+    expect(plain.find((row) => row.value === "useRouter")).toEqual({
+      value: "useRouter",
+      score: score("userr", "useRouter", { typoTolerance: false })!.score,
+      positions: score("userr", "useRouter", { typoTolerance: false })!.positions,
+    })
+    expect(tolerant.find((row) => row.value === "user")!.score).toBe(score("userr", "user")!.score)
+  })
 })

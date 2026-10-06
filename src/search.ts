@@ -1,4 +1,4 @@
-import { score } from "./score.js"
+import { score, type ScoreOptions } from "./score.js"
 
 export type SearchResult = {
   value: string
@@ -11,11 +11,15 @@ export type SearchResult = {
  * Order is score descending, then shorter candidate, then original input order.
  * Length only breaks ties. It is not part of the fuzzy score.
  */
-export function search(query: string, candidates: readonly string[]): SearchResult[] {
+export function search(
+  query: string,
+  candidates: readonly string[],
+  options?: ScoreOptions,
+): SearchResult[] {
   const ranked: Array<SearchResult & { index: number }> = []
   for (let index = 0; index < candidates.length; index++) {
     const value = candidates[index]!
-    const result = score(query, value)
+    const result = score(query, value, options)
     if (result === null) continue
     ranked.push({ value, score: result.score, positions: result.positions, index })
   }

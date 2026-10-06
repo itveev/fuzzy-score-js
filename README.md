@@ -2,9 +2,9 @@
 
 Fast, explainable fuzzy scoring for client-side search.
 
-Use it to rank command-palette items, identifiers, and other short labels in the browser or in Node. `score()` picks one in-order alignment and returns its quality plus the matched character indexes. `search()` ranks a list of strings.
+Use it to rank command-palette items, identifiers, and other short labels in the browser or in Node. `score()` picks one alignment and returns its quality plus the matched character indexes. `search()` ranks a list of strings.
 
-This is for small and medium in-memory collections. It is not full-text search, typo correction, or a search engine.
+The alignment is ordered. By default a query may also contain one limited typo, under the rules below. This is for small and medium in-memory collections. It is not full-text search, not edit-distance search, and not a search engine.
 
 ## Install
 
@@ -16,7 +16,7 @@ The package is ESM-only. It has no runtime dependencies.
 
 ```ts
 import { score, search } from "fuzzy-score-js"
-import type { ScoreResult, SearchResult } from "fuzzy-score-js"
+import type { ScoreOptions, ScoreResult, SearchResult } from "fuzzy-score-js"
 ```
 
 ## `score()`
@@ -28,11 +28,58 @@ result?.positions
 // [0, 4]
 ```
 
-`score(query, candidate)` returns `{ score, positions }` when `query` is an in-order subsequence of `candidate`, and `null` otherwise. `positions` are indexes into the candidate.
+```ts
+score(query, candidate, options?)
+```
 
-A higher `score` is a better alignment. Compare scores only for the same query.
+`options` is `ScoreOptions`:
+
+```ts
+type ScoreOptions = {
+  typoTolerance?: boolean // default true
+}
+```
+
+`score` returns `{ score, positions }`, or `null` when nothing matches. A higher `score` is a better alignment. Compare scores only for the same query.
+
+`positions[i]` is where `query[i]` landed in the candidate.
+
+- An ordinary match is a rising sequence of candidate indexes.
+- An extra query character is `-1`. It consumes no candidate character.
+- An adjacent transposition may place two neighboring query characters in reverse candidate order.
+
+```ts
+score("uesr", "user")?.positions
+// [0, 2, 1, 3]  — e and s are transposed
+
+score("userr", "user")?.positions
+// [0, 1, 2, 3, -1]  — the extra r is not placed
+
+score("uesr", "user", { typoTolerance: false })
+// null
+```
+
+`typoTolerance: false` is the strict ordered-subsequence scorer. `usr` against `user` is that kind of match either way: a missing query character is a gap in the alignment, not a typo.
+
+```ts
+score("usr", "user")
+score("usr", "user", { typoTolerance: false })
+// same score and positions
+```
+
+With the default `typoTolerance: true`, a typo is allowed only as follows. At most one error is allowed, and it cannot involve `query[0]`. Substitution is not supported.
+
+- query length 3 or less: no typo tolerance
+- query length 4: one adjacent transposition
+- query length 5 or more: one adjacent transposition, or one extra query character
 
 ## `search()`
+
+```ts
+search(query, candidates, options?)
+```
+
+`options` is the same `ScoreOptions`. `search` passes it to `score` and does not apply a second typo policy.
 
 ```ts
 const results = search("usr", [
@@ -50,7 +97,7 @@ Each row is `{ value, score, positions }`. Non-matches are dropped.
 
 ## How it works
 
-`score()` is not string similarity and not edit distance. It looks for the best ordered alignment of the query inside the candidate. Every query character must occur in the candidate, in the same order. When several alignments exist, scoring picks one.
+`score()` is not string similarity and not edit-distance search. It looks for the best ordered alignment of the query inside the candidate. A normal match places every query character in that order. The default typo tolerance, described above, may drop one extra query character or swap one adjacent pair. When several alignments exist, scoring picks one. A normal alignment wins a tie against a typo alignment.
 
 ```text
 query:     n p
@@ -59,7 +106,7 @@ candidate: NextPermutation
 positions: [0, 4]
 ```
 
-A greedy matcher that keeps the first hit is not enough. For query `abc` and candidate `a___abc` the first available alignment is `[0, 5, 6]`. The better one is the compact run at the end, `[4, 5, 6]`. The scorer therefore considers alternative paths through the candidate. That is why the alignment step is a dynamic program: the state at `(i, j)` is the best score for placing `query[i]` at `candidate[j]`. The recurrence and the tie rules are in [docs/algorithm.md](./docs/algorithm.md).
+A greedy matcher that keeps the first hit is not enough. For query `abc` and candidate `a___abc` the first available alignment is `[0, 5, 6]`. The better one is the compact run at the end, `[4, 5, 6]`. The scorer therefore considers alternative paths through the candidate. That is why the alignment step is a dynamic program: the normal state at `(i, j)` is the best score for placing `query[i]` at `candidate[j]`. The recurrence, the one-typo layer, and the tie rules are in [docs/algorithm.md](./docs/algorithm.md).
 
 Scoring prefers:
 
@@ -100,19 +147,17 @@ A penalty on that tail was tried. It dragged down good prefix alignments whose n
 2. shorter candidate first
 3. original input order
 
-### Edit distance and typos
+### Not edit distance
 
-Edit distance answers a different question. `np` and `NextPermutation` are far apart as edits and a normal match as an identifier alignment, which is the v0.1 use case.
-
-If the query is not an ordered subsequence, `score()` returns `null`. v0.1 does not correct typos or transposed characters. That is the semantics of this version, not a shortcut that still needs to be filled in.
+Edit distance answers a different question. `np` and `NextPermutation` are far apart as edits and a normal match as an identifier alignment. The typo rules above are not a general edit of the query.
 
 ### Performance
 
-Before the dynamic program, a linear scan rejects candidates that cannot contain the query in order. Those candidates never reach the tables.
+A feasibility check runs before the tables. It rejects a pair only when no allowed alignment can exist, and it does not choose the score or the positions. Pairs that survive go through the dynamic program, which is `O(query length × candidate length)`. `typoTolerance: false` uses the ordered-subsequence check and the normal alignment only.
 
-The direct recurrence considered every previous match for every cell, which is `O(query length × candidate length²)`. Non-adjacent gaps factor through a prefix sum of skip penalties, so the same recurrence runs in `O(query length × candidate length)`. It is the same scoring, not an approximation. The repository checks the optimized scorer against that direct recurrence on a curated corpus, generated pairs, and exhaustive strings over small alphabets.
+The direct recurrence considered every previous match for every cell, which is `O(query length × candidate length²)`. Non-adjacent gaps factor through a prefix sum of skip penalties, so the same normal recurrence runs in `O(query length × candidate length)`. It is the same scoring, not an approximation. With `typoTolerance: false`, the repository checks that path against the direct recurrence.
 
-The intended load is short interactive queries over identifier-like strings in memory.
+The intended load is short interactive queries over identifier-like strings in memory. Measured times are not part of the contract.
 
 ## Design notes
 
@@ -120,14 +165,13 @@ Decisions that are easy to undo by accident:
 
 - The first matching path is not the result. `a___abc` is the counterexample.
 - The unmatched tail is unscored on purpose. Length belongs to `search()` only.
-- Typo and reordering fallbacks from an earlier scorer were not carried into v0.1.
-- The `O(m·n)` implementation was checked to return the same score and positions as the direct recurrence. It is not a second ranking model.
+- Default typo tolerance is the fixed policy above, not a free reordering of the query. `typoTolerance: false` keeps the strict ordered subsequence.
+- With `typoTolerance: false`, the `O(m·n)` normal path was checked to return the same score and positions as the direct recurrence. It is not a second ranking model.
 - VS Code's Command Palette was a reference point, not a target order. Its fuzzy matcher decides which labels match; the list order also uses separate comparison rules, including a literal prefix, a suffix, and alphabetical order. This library does not reproduce that order.
 
 ## Limitations
 
-- The query must be an ordered subsequence of the candidate.
-- v0.1 has no typo correction.
+- Typo tolerance does not cover substitution, more than one error, or an error on the first query character.
 - There is no edit-distance matching.
 - `search()` accepts strings only.
 - Intended for in-memory client-side collections.
