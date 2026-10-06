@@ -1,0 +1,60 @@
+{
+  "name": "fuzzy-score-js",
+  "version": "0.1.0",
+  "description": "Fast, explainable fuzzy scoring for client-side search.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itveev/fuzzy-score-js.git"
+  },
+  "homepage": "https://github.com/itveev/fuzzy-score-js#readme",
+  "bugs": {
+    "url": "https://github.com/itveev/fuzzy-score-js/issues"
+  },
+  "keywords": [
+    "fuzzy",
+    "fuzzy-search",
+    "fuzzy-match",
+    "scoring",
+    "ranking",
+    "command-palette"
+  ],
+  "files": [
+    "dist/index.js",
+    "dist/index.d.ts",
+    "dist/score.js",
+    "dist/score.d.ts",
+    "dist/search.js",
+    "dist/search.d.ts",
+    "dist/boundaries.js",
+    "docs/algorithm.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc",
+    "compare": "tsx experiments/compare.ts",
+    "search": "tsx experiments/search.ts",
+    "benchmark": "tsx experiments/benchmark.ts",
+    "vscode-compare": "tsx experiments/vscode-compare.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

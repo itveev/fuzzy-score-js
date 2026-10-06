@@ -1,0 +1,132 @@
+export const scenarios: { query: string; candidates: string[] }[] = [
+  {
+    query: "up",
+    candidates: [
+      "up",
+      "updater",
+      "UserProfile",
+      "user-profile",
+      "updateProfile",
+      "setup",
+      "superuser",
+      "UltraPower",
+      "UpdateCurrentUserProfile",
+    ],
+  },
+  {
+    query: "user",
+    candidates: [
+      "user",
+      "User",
+      "userProfile",
+      "UserService",
+      "getUser",
+      "getCurrentUser",
+      "superuser",
+      "username",
+      "some_unrelated_user_value",
+    ],
+  },
+  {
+    query: "profile",
+    candidates: [
+      "Profile",
+      "ProfileService",
+      "ProfileServiceFactory",
+      "UserProfile",
+      "getProfile",
+      "someprofile",
+      "VeryLongCompletelyUnrelatedPrefixProfile",
+    ],
+  },
+  {
+    query: "abc",
+    candidates: [
+      "abc",
+      "ABC",
+      "a_bc",
+      "a___abc",
+      "a___ab_c",
+      "AlphaBetaController",
+      "abcVeryVeryVeryLongSuffix",
+    ],
+  },
+  {
+    query: "np",
+    candidates: [
+      "npmPackage",
+      "NextPermutation",
+      "nextPermutation",
+      "newProject",
+      "input",
+      "internationalizationProcessor",
+    ],
+  },
+  {
+    query: "usr",
+    candidates: [
+      "User",
+      "UserProfile",
+      "getUser",
+      "getCurrentUser",
+      "superuser",
+      "username",
+    ],
+  },
+  {
+    query: "gup",
+    candidates: [
+      "getUserProfile",
+      "get_user_profile",
+      "get-user-profile",
+      "getCurrentUserProfile",
+      "getUpdatedProfile",
+    ],
+  },
+  {
+    query: "xhr",
+    candidates: [
+      "XMLHttpRequest",
+      "XmlHttpRequest",
+      "XHttpRequest",
+      "someXHttpRequest",
+    ],
+  },
+  {
+    query: "v3c",
+    candidates: ["Vue3Component", "Vue3Config", "version3Component"],
+  },
+  {
+    query: "пр",
+    candidates: [
+      "профиль",
+      "Профиль",
+      "ПрофильСервиса",
+      "профильПользователя",
+      "профиль-пользователя",
+      "обновитьПрофиль",
+      "неправильный",
+    ],
+  },
+  {
+    query: "польз",
+    candidates: [
+      "пользователь",
+      "Пользователь",
+      "профильПользователя",
+      "получитьПользователя",
+      "суперпользователь",
+      "имяПользователя",
+    ],
+  },
+  {
+    query: "ппп",
+    candidates: [
+      "получитьПрофильПользователя",
+      "получить-профиль-пользователя",
+      "получить_профиль_пользователя",
+      "получитьТекущийПрофильПользователя",
+      "получитьПрофильТекущегоПользователя",
+    ],
+  },
+]
