@@ -1,5 +1,8 @@
 # fuzzy-score-js
 
+[![npm version](https://img.shields.io/npm/v/fuzzy-score-js)](https://www.npmjs.com/package/fuzzy-score-js)
+[![npm downloads](https://img.shields.io/npm/dm/fuzzy-score-js)](https://www.npmjs.com/package/fuzzy-score-js)
+
 Fast, explainable fuzzy scoring for client-side search.
 
 Use it to rank command-palette items, identifiers, and other short labels in the browser or in Node. `score()` picks one alignment and returns its quality plus the matched character indexes. `search()` ranks a list of strings.
